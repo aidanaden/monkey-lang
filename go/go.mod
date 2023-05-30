@@ -1,4 +1,4 @@
-module github.com/aidanaden/interpreter-compiler-book
+module github.com/aidanaden/monkey-lang
 
 go 1.20
 

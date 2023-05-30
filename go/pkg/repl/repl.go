@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/aidanaden/interpreter-compiler-book/pkg/lexer"
-	"github.com/aidanaden/interpreter-compiler-book/pkg/token"
+	"github.com/aidanaden/monkey-lang/pkg/lexer"
+	"github.com/aidanaden/monkey-lang/pkg/token"
 )
 
 const PROMPT = ">> "

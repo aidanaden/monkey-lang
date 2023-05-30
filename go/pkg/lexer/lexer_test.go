@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/aidanaden/interpreter-compiler-book/pkg/token"
+	"github.com/aidanaden/monkey-lang/pkg/token"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/user"
 
-	"github.com/aidanaden/interpreter-compiler-book/pkg/repl"
+	"github.com/aidanaden/monkey-lang/pkg/repl"
 )
 
 func main() {
