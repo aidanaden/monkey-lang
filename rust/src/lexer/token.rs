@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(Debug, PartialEq)]
 pub enum Token {
     Illegal(u8),
@@ -29,6 +31,8 @@ pub enum Token {
     LBrace,
     RBrace,
 
+    Caret,
+
     // keywords
     Function,
     Let,
@@ -37,4 +41,16 @@ pub enum Token {
     If,
     Else,
     Return,
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let v = self.clone();
+        match v {
+            Self::Ident(s) => write!(f, "Type: Ident, value: '{}'", *s),
+            Self::Illegal(c) => write!(f, "Type: Illegal, value: {:?}", *c as char),
+            Self::Int(i) => write!(f, "Type: Int, value: '{}'", i),
+            _ => write!(f, "Type: {:?}", *self),
+        }
+    }
 }

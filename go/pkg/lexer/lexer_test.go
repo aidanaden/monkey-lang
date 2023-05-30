@@ -11,7 +11,7 @@ import (
 func testInputTokens(t *testing.T, input string, expected []token.Token) {
 	lexer := New(input)
 	for _, expectedToken := range expected {
-		token := lexer.nextToken()
+		token := lexer.NextToken()
 		assert.Equal(t, expectedToken.Literal == token.Literal && expectedToken.Type == token.Type, true, fmt.Sprintf("Produced token is %+v but expected %+v", token, expectedToken))
 	}
 }

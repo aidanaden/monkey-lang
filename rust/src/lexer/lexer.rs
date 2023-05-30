@@ -10,7 +10,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    fn new(input: String) -> Lexer {
+    pub fn new(input: String) -> Lexer {
         let mut lex = Lexer {
             pos: 0,
             read_pos: 0,
@@ -61,7 +61,7 @@ impl Lexer {
         return String::from_utf8_lossy(&self.input[pos..self.pos]).to_string();
     }
 
-    fn next_token(&mut self) -> Result<Token> {
+    pub fn next_token(&mut self) -> Result<Token> {
         self.skip_whitespace();
         let tok: Token;
         match self.char {
@@ -116,7 +116,7 @@ impl Lexer {
             }
             b'0'..=b'9' => return Ok(Token::Int(self.read_digit())),
             0 => tok = Token::Eof,
-            _ => todo!(),
+            _ => tok = Token::Illegal(self.char),
         }
         self.read_char();
         return Ok(tok);
