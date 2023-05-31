@@ -57,6 +57,14 @@ func (l *Lexer) readIdentifierOrDigit(tokenType token.TokenType) string {
 	return l.input[pos:l.pos]
 }
 
+func (l *Lexer) readString() string {
+	pos := l.pos
+	for l.char != '"' {
+		l.readChar()
+	}
+	return l.input[pos:l.pos]
+}
+
 func (l *Lexer) skipWhiteSpace() {
 	for l.char == ' ' || l.char == '\t' || l.char == '\n' || l.char == '\r' {
 		l.readChar()
@@ -107,6 +115,10 @@ func (l *Lexer) NextToken() token.Token {
 		tok = token.NewToken(token.LBRACE, l.char)
 	case '}':
 		tok = token.NewToken(token.RBRACE, l.char)
+	case '"':
+		l.readChar()
+		tok.Literal = l.readString()
+		tok.Type = token.STRING
 	case 0:
 		tok.Type = token.EOF
 		tok.Literal = ""

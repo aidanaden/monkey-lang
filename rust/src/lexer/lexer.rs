@@ -61,6 +61,14 @@ impl Lexer {
         return String::from_utf8_lossy(&self.input[pos..self.pos]).to_string();
     }
 
+    fn read_string(&mut self) -> String {
+        let pos = self.pos;
+        while self.char != b'"' {
+            self.read_char();
+        }
+        return String::from_utf8_lossy(&self.input[pos..self.pos]).to_string();
+    }
+
     pub fn next_token(&mut self) -> Result<Token> {
         self.skip_whitespace();
         let tok: Token;
@@ -101,6 +109,10 @@ impl Lexer {
             b')' => tok = Token::RParen,
             b'{' => tok = Token::LBrace,
             b'}' => tok = Token::RBrace,
+            b'"' => {
+                self.read_char();
+                tok = Token::String(self.read_string())
+            }
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
                 let ident = self.read_ident();
                 return Ok(match ident.as_str() {
@@ -183,6 +195,8 @@ if (5 < 10) {
 
 10 == 10;
 10 != 9;
+
+let st = \"hello!\";
 ";
 
         let expected: Vec<Token> = vec![
@@ -258,6 +272,12 @@ if (5 < 10) {
             Token::Int(String::from("10")),
             Token::Ne,
             Token::Int(String::from("9")),
+            Token::Semicolon,
+            // string test
+            Token::Let,
+            Token::Ident(String::from("st")),
+            Token::Assign,
+            Token::String(String::from("hello!")),
             Token::Semicolon,
             Token::Eof,
         ];

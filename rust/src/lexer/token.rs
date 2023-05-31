@@ -6,8 +6,9 @@ pub enum Token {
     Eof,
 
     // identifiers + literals
-    Ident(String), // add, foobar, x, y, etc
-    Int(String),   // 123456
+    Ident(String),  // add, foobar, x, y, etc
+    Int(String),    // 123456
+    String(String), // "vroom!"
 
     // operators
     Assign,

@@ -52,6 +52,8 @@ if (5 < 10) {
 
 10 == 10;
 10 != 9;
+
+let st = "hello!";
 `
 	tests := []token.Token{
 		{Type: token.LET, Literal: "let"},
@@ -130,6 +132,14 @@ if (5 < 10) {
 		{Type: token.NE, Literal: "!="},
 		{Type: token.INT, Literal: "9"},
 		{Type: token.SEMICOLON, Literal: ";"},
+
+		// string test
+		{Type: token.LET, Literal: "let"},
+		{Type: token.IDENT, Literal: "st"},
+		{Type: token.ASSIGN, Literal: "="},
+		{Type: token.STRING, Literal: "hello!"},
+		{Type: token.SEMICOLON, Literal: ";"},
+
 		{Type: token.EOF, Literal: ""},
 	}
 	testInputTokens(t, input, tests)
