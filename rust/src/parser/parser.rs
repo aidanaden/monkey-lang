@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::lexer::{lexer, token};
 
 use super::ast::{Identifier, Program, Statement};
