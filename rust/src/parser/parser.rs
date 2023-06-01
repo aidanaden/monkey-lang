@@ -28,9 +28,9 @@ impl Parser {
         let mut program = Program { statements: vec![] };
 
         loop {
-            if let Some(t) = self.curr_token.clone() {
+            if let Some(t) = &self.curr_token {
                 println!("token {:?}", t);
-                if t == token::Token::Eof {
+                if *t == token::Token::Eof {
                     break;
                 }
 
@@ -48,7 +48,7 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> Option<Statement> {
-        if let Some(t) = self.curr_token.clone() {
+        if let Some(t) = &self.curr_token {
             match t {
                 token::Token::Let => return self.parse_let_statement(),
                 _ => return None,
@@ -62,7 +62,7 @@ impl Parser {
         if let Some(tok) = self.curr_token.clone() {
             self.next_token();
 
-            if let Some(ident_token) = self.curr_token.clone() {
+            if let Some(ident_token) = &self.curr_token {
                 match ident_token {
                     token::Token::Ident(_) => {}
                     _ => return None,
@@ -70,7 +70,7 @@ impl Parser {
 
                 let ident = Identifier {
                     value: ident_token.to_string(),
-                    token: ident_token,
+                    token: ident_token.clone(),
                 };
 
                 if !self.expect_peek(&token::Token::Assign) {
@@ -119,7 +119,7 @@ impl Parser {
     //     p.errors = append(p.errors, msg)
     // }
     fn peek_token_error(&mut self, t: &token::Token) {
-        if let Some(peek) = self.peek_token.clone() {
+        if let Some(peek) = &self.peek_token {
             let msg = format!(
                 "expected next token to be {:?} but got {:?} instead :(",
                 t, peek
@@ -135,16 +135,16 @@ impl Parser {
     }
 
     fn is_curr_token(&self, t: &token::Token) -> bool {
-        if let Some(curr) = self.curr_token.clone() {
-            return curr == *t;
+        if let Some(curr) = &self.curr_token {
+            return *curr == *t;
         } else {
             return false;
         }
     }
 
     fn is_peek_token(&self, t: &token::Token) -> bool {
-        if let Some(peek) = self.peek_token.clone() {
-            return peek == *t;
+        if let Some(peek) = &self.peek_token {
+            return *peek == *t;
         } else {
             return false;
         }
