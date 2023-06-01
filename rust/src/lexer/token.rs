@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Illegal(u8),
     Eof,
@@ -48,8 +48,8 @@ impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let v = self.clone();
         match v {
-            Self::Ident(s) => write!(f, "Type: Ident, value: '{}'", *s),
-            Self::Illegal(c) => write!(f, "Type: Illegal, value: {:?}", *c as char),
+            Self::Ident(s) => write!(f, "Type: Ident, value: '{}'", s),
+            Self::Illegal(c) => write!(f, "Type: Illegal, value: {:?}", c as char),
             Self::Int(i) => write!(f, "Type: Int, value: '{}'", i),
             _ => write!(f, "Type: {:?}", *self),
         }
