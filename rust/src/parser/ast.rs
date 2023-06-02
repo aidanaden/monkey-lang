@@ -9,14 +9,14 @@ pub struct Expression {}
 
 #[derive(Debug)]
 pub enum Statement {
-    LetStatement(token::Token, Identifier),
-    ReturnStatement(token::Token, Expression),
+    LetStatement(token::Token, Identifier, Expression), // token.LET token, variable name, variable value/expression
+    ReturnStatement(token::Token, Expression),          // 'return' token, returned expression
 }
 
 impl Node for Statement {
     fn token_literal(&self) -> String {
         match self {
-            Self::LetStatement(token, _) => {
+            Self::LetStatement(token, _, _) => {
                 return token.to_string();
             }
             Self::ReturnStatement(token, _) => {

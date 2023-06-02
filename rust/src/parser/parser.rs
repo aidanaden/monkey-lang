@@ -3,7 +3,7 @@ use crate::lexer::{
     token::{self, Token},
 };
 
-use super::ast::{Identifier, Program, Statement};
+use super::ast::{Expression, Identifier, Program, Statement};
 
 pub struct Parser {
     lex: lexer::Lexer,
@@ -52,6 +52,7 @@ impl Parser {
         if let Some(t) = &self.curr_token {
             match t {
                 token::Token::Let => return self.parse_let_statement(),
+                token::Token::Return => return self.parse_return_statement(),
                 _ => return None,
             }
         } else {
@@ -65,26 +66,34 @@ impl Parser {
                 return None;
             }
 
-            match &self.curr_token {
-                Some(Token::Ident(ident_str)) => {
-                    let ident = Identifier {
-                        token: Token::Ident(ident_str.to_string()),
-                        value: ident_str.to_string(),
-                    };
+            if let Some(Token::Ident(ident_str)) = &self.curr_token {
+                let ident = Identifier {
+                    token: Token::Ident(ident_str.to_string()),
+                    value: ident_str.to_string(),
+                };
 
-                    if !self.expect_peek(&token::Token::Assign) {
-                        return None;
-                    }
-
-                    while !self.is_curr_token(&token::Token::Semicolon) {
-                        self.next_token();
-                    }
-
-                    let stmt = Statement::LetStatement(tok, ident);
-                    return Some(stmt);
+                if !self.expect_peek(&token::Token::Assign) {
+                    return None;
                 }
-                _ => return None,
+
+                while !self.is_curr_token(&token::Token::Semicolon) {
+                    self.next_token();
+                }
+
+                let stmt = Statement::LetStatement(tok, ident, Expression {});
+                return Some(stmt);
             }
+        }
+        return None;
+    }
+
+    fn parse_return_statement(&mut self) -> Option<Statement> {
+        if let Some(tok) = self.curr_token.clone() {
+            while !self.is_curr_token(&token::Token::Semicolon) {
+                self.next_token();
+            }
+            let stmt = Statement::ReturnStatement(tok, Expression {});
+            return Some(stmt);
         }
         return None;
     }
@@ -144,35 +153,25 @@ mod test {
 
     use crate::{
         lexer::{lexer, token::Token},
-        parser::ast::{Node, Statement},
+        parser::ast::{Node, Program, Statement},
     };
 
     use super::Parser;
 
-    fn create_parser(input: &str) -> Parser {
+    fn parse_input(input: &str, num_stmts: usize) -> Program {
         let lex = lexer::Lexer::new(input.to_string());
-        let parser = Parser::new(lex);
-        return parser;
+        let mut parser = Parser::new(lex);
+        check_parser_errors(&parser);
+        let program = parser.parse_program();
+        assert_eq!(
+            program.statements.len(),
+            num_stmts,
+            "Expected program to have {} statements, received {}",
+            num_stmts,
+            program.statements.len()
+        );
+        return program;
     }
-
-    // func checkParserErrorss(t *testing.T, p *Parser) {
-    // 	errors := p.Errors()
-    // 	if len(errors) == 0 {
-    // 		return
-    // 	}
-
-    // 	if len(errors) > 1 {
-    // 		t.Errorf("parser has %d errors", len(errors))
-    // 	} else {
-    // 		t.Errorf("parser has %d error", len(errors))
-    // 	}
-
-    // 	for _, msg := range errors {
-    // 		t.Errorf("parser error found: %q", msg)
-    // 	}
-
-    // 	t.FailNow()
-    // }
 
     fn check_parser_errors(p: &Parser) {
         let errors = &p.errors;
@@ -193,7 +192,7 @@ mod test {
     }
 
     #[test]
-    fn test_let_statements() -> Result<()> {
+    fn test_valid_let_statements() -> Result<()> {
         let invalid = "
 let x 5;
 let = 10;
@@ -204,16 +203,7 @@ let x = 5;
 let y = 10;
 let foobar = 838383;
 ";
-        let mut parser = create_parser(invalid);
-        let program = parser.parse_program();
-
-        check_parser_errors(&parser);
-        assert_eq!(
-            program.statements.len(),
-            3,
-            "Expected program to have 3 statements, received {}",
-            program.statements.len()
-        );
+        let program = parse_input(input, 3);
 
         let tests = vec![
             Token::Ident("x".to_string()),
@@ -229,7 +219,7 @@ let foobar = 838383;
                     stmt.token_literal().to_string()
                 );
                 match stmt {
-                    Statement::LetStatement(_, ident) => {
+                    Statement::LetStatement(_, ident, _) => {
                         assert_eq!(
                             test.to_string() == ident.token.to_string(),
                             true,
@@ -245,76 +235,28 @@ let foobar = 838383;
 
         return Ok(());
     }
+
+    #[test]
+    fn test_valid_return_statements() -> Result<()> {
+        let input = "
+return 5;
+return 10;
+return 993322;
+";
+        let program = parse_input(input, 3);
+        for stmt in program.statements {
+            if let Statement::ReturnStatement(tok, _) = stmt {
+                match tok {
+                    Token::Return => continue,
+                    _ => panic!("invalid token found, expected 'return' but found {}", tok),
+                }
+            } else {
+                panic!(
+                    "invalid stmt found, expected ReturnStatement but found {:?}",
+                    stmt
+                )
+            }
+        }
+        return Ok(());
+    }
 }
-
-// func TestLetStatements(t *testing.T) {
-// 	input := `
-// let x = 5;
-// let y = 10;
-// let foobar = 838383;
-// `
-
-// 	l := lexer.New(input)
-// 	p := New(l)
-
-// 	program := p.ParseProgram()
-// 	checkParserErrorss(t, p)
-// 	if program == nil {
-// 		t.Fatalf("ParseProgram() returned nil")
-// 	}
-// 	if len(program.Statements) != 3 {
-// 		t.Fatalf("program.Statements ddoes not contain 3 statements, got=%d", len(program.Statements))
-// 	}
-
-// 	tests := []string{"x", "y", "foobar"}
-// 	for i, test := range tests {
-// 		stmt := program.Statements[i]
-// 		if !testLetStatement(t, stmt, test) {
-// 			return
-// 		}
-// 	}
-// }
-
-// func testLetStatement(t *testing.T, s ast.Statement, name string) bool {
-// 	if s.TokenLiteral() != "let" {
-// 		t.Errorf("s.TokenLiteral() not 'let', got=%q", s.TokenLiteral())
-// 		return false
-// 	}
-
-// 	letStmt, ok := s.(*ast.LetStatement)
-// 	if !ok {
-// 		t.Errorf("s not *ast.LetStatement, got=%T", s)
-// 		return false
-// 	}
-
-// 	if letStmt.Name.Value != name {
-// 		t.Errorf("LetStmt.Name.Value not '%s', got=%s", name, letStmt.Name.Value)
-// 		return false
-// 	}
-
-// 	if letStmt.Name.TokenLiteral() != name {
-// 		t.Errorf("s.Name not '%s', got=%s", name, letStmt.Name)
-// 		return false
-// 	}
-
-// 	return true
-// }
-
-// func checkParserErrorss(t *testing.T, p *Parser) {
-// 	errors := p.Errors()
-// 	if len(errors) == 0 {
-// 		return
-// 	}
-
-// 	if len(errors) > 1 {
-// 		t.Errorf("parser has %d errors", len(errors))
-// 	} else {
-// 		t.Errorf("parser has %d error", len(errors))
-// 	}
-
-// 	for _, msg := range errors {
-// 		t.Errorf("parser error found: %q", msg)
-// 	}
-
-// 	t.FailNow()
-// }
