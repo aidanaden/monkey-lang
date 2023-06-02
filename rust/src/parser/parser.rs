@@ -1,4 +1,7 @@
-use crate::lexer::{lexer, token};
+use crate::lexer::{
+    lexer,
+    token::{self, Token},
+};
 
 use super::ast::{Identifier, Program, Statement};
 
@@ -29,13 +32,11 @@ impl Parser {
 
         loop {
             if let Some(t) = &self.curr_token {
-                println!("token {:?}", t);
                 if *t == token::Token::Eof {
                     break;
                 }
 
                 if let Some(stmt) = self.parse_statement() {
-                    println!("statment {:?}", stmt);
                     program.statements.push(stmt);
                 }
                 self.next_token();
@@ -60,30 +61,29 @@ impl Parser {
 
     fn parse_let_statement(&mut self) -> Option<Statement> {
         if let Some(tok) = self.curr_token.clone() {
-            self.next_token();
+            if !self.expect_peek(&token::Token::Ident("???".to_string())) {
+                return None;
+            }
 
-            if let Some(ident_token) = &self.curr_token {
-                match ident_token {
-                    token::Token::Ident(_) => {}
-                    _ => return None,
+            match &self.curr_token {
+                Some(Token::Ident(ident_str)) => {
+                    let ident = Identifier {
+                        token: Token::Ident(ident_str.to_string()),
+                        value: ident_str.to_string(),
+                    };
+
+                    if !self.expect_peek(&token::Token::Assign) {
+                        return None;
+                    }
+
+                    while !self.is_curr_token(&token::Token::Semicolon) {
+                        self.next_token();
+                    }
+
+                    let stmt = Statement::LetStatement(tok, ident);
+                    return Some(stmt);
                 }
-
-                let ident = Identifier {
-                    value: ident_token.to_string(),
-                    token: ident_token.clone(),
-                };
-
-                if !self.expect_peek(&token::Token::Assign) {
-                    return None;
-                }
-
-                let stmt = Statement::LetStatement(tok, ident);
-
-                while !self.is_curr_token(&token::Token::Semicolon) {
-                    self.next_token();
-                }
-
-                return Some(stmt);
+                _ => return None,
             }
         }
         return None;
@@ -96,15 +96,6 @@ impl Parser {
         }
     }
 
-    // func (p *Parser) expectPeek(t token.TokenType) bool {
-    //     if p.isPeekToken(t) {
-    //         p.nextToken()
-    //         return true
-    //     }
-    //     p.peekTokenError(t)
-    //     return false
-    // }
-
     fn expect_peek(&mut self, t: &token::Token) -> bool {
         if self.is_peek_token(t) {
             self.next_token();
@@ -114,10 +105,6 @@ impl Parser {
         return false;
     }
 
-    // func (p *Parser) peekTokenError(t token.TokenType) {
-    //     msg := fmt.Sprintf("expected next token to be %s, got %s instead :(", t, p.peekToken.Type)
-    //     p.errors = append(p.errors, msg)
-    // }
     fn peek_token_error(&mut self, t: &token::Token) {
         if let Some(peek) = &self.peek_token {
             let msg = format!(
@@ -144,7 +131,7 @@ impl Parser {
 
     fn is_peek_token(&self, t: &token::Token) -> bool {
         if let Some(peek) = &self.peek_token {
-            return *peek == *t;
+            return std::mem::discriminant(peek) == std::mem::discriminant(t);
         } else {
             return false;
         }
@@ -217,16 +204,16 @@ let x = 5;
 let y = 10;
 let foobar = 838383;
 ";
-        let mut parser = create_parser(input);
+        let mut parser = create_parser(invalid);
         let program = parser.parse_program();
 
+        check_parser_errors(&parser);
         assert_eq!(
             program.statements.len(),
             3,
             "Expected program to have 3 statements, received {}",
             program.statements.len()
         );
-        check_parser_errors(&parser);
 
         let tests = vec![
             Token::Ident("x".to_string()),
@@ -251,6 +238,7 @@ let foobar = 838383;
                             ident.value
                         )
                     }
+                    _ => continue,
                 }
             }
         }

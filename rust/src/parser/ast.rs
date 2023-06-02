@@ -4,13 +4,13 @@ pub trait Node {
     fn token_literal(&self) -> String;
 }
 
-pub trait Expression: Node {
-    fn expression_node(&self) -> String;
-}
+#[derive(Debug)]
+pub struct Expression {}
 
 #[derive(Debug)]
 pub enum Statement {
     LetStatement(token::Token, Identifier),
+    ReturnStatement(token::Token, Expression),
 }
 
 impl Node for Statement {
@@ -19,15 +19,8 @@ impl Node for Statement {
             Self::LetStatement(token, _) => {
                 return token.to_string();
             }
-        }
-    }
-}
-
-impl Expression for Statement {
-    fn expression_node(&self) -> String {
-        match self {
-            Self::LetStatement(_, _) => {
-                return "expression_node()".to_string();
+            Self::ReturnStatement(token, _) => {
+                return token.to_string();
             }
         }
     }
@@ -63,12 +56,12 @@ impl Node for Identifier {
     }
 }
 
-impl Expression for Identifier {
-    // fn expression_node(&self) -> String {}
-    fn expression_node(&self) -> String {
-        return "".to_string();
-    }
-}
+// impl Expression for Identifier {
+//     // fn expression_node(&self) -> String {}
+//     fn expression_node(&self) -> String {
+//         return "".to_string();
+//     }
+// }
 
 // type LetStatement struct {
 // 	Token token.Token // the token.LET token
