@@ -48,10 +48,10 @@ impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let v = self.clone();
         match v {
-            Self::Ident(s) => write!(f, "Type: Ident, value: '{}'", s),
-            Self::Illegal(c) => write!(f, "Type: Illegal, value: {:?}", c as char),
-            Self::Int(i) => write!(f, "Type: Int, value: '{}'", i),
-            _ => write!(f, "Type: {:?}", *self),
+            Self::Ident(s) => write!(f, "Token(Ident, value: '{}')", s),
+            Self::Illegal(c) => write!(f, "Token(Illegal, value: {:?})", c as char),
+            Self::Int(i) => write!(f, "Token(Int, value: '{}')", i),
+            _ => write!(f, "Token({:?})", *self),
         }
     }
 }

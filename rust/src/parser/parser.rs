@@ -163,6 +163,7 @@ mod test {
         let mut parser = Parser::new(lex);
         check_parser_errors(&parser);
         let program = parser.parse_program();
+        println!("{}", program);
         assert_eq!(
             program.statements.len(),
             num_stmts,
