@@ -1,17 +1,23 @@
+use std::collections::HashMap;
+
 use crate::lexer::{
     lexer,
-    token::{self, Token},
+    token::{self},
 };
 
 use super::ast::{Expression, Identifier, Program, Statement};
 
+type prefix_parse_fn = fn() -> Expression;
+type infix_parse_fn = fn(Expression) -> Expression;
+
 pub struct Parser {
     lex: lexer::Lexer,
-
+    errors: Vec<String>,
     curr_token: Option<token::Token>,
     peek_token: Option<token::Token>,
 
-    errors: Vec<String>,
+    prefix_parse_fns: HashMap<token::Token, prefix_parse_fn>,
+    infix_parse_fns: HashMap<token::Token, infix_parse_fn>,
 }
 
 impl Parser {
@@ -21,6 +27,8 @@ impl Parser {
             errors: vec![],
             curr_token: None,
             peek_token: None,
+            infix_parse_fns: HashMap::new(),
+            prefix_parse_fns: HashMap::new(),
         };
         p.next_token();
         p.next_token();
@@ -61,14 +69,14 @@ impl Parser {
     }
 
     fn parse_let_statement(&mut self) -> Option<Statement> {
-        if let Some(tok) = self.curr_token.clone() {
+        if let Some(let_tok) = self.curr_token.clone() {
             if !self.expect_peek(&token::Token::Ident("???".to_string())) {
                 return None;
             }
 
-            if let Some(Token::Ident(ident_str)) = &self.curr_token {
+            if let Some(token::Token::Ident(ident_str)) = &self.curr_token {
                 let ident = Identifier {
-                    token: Token::Ident(ident_str.to_string()),
+                    token: token::Token::Ident(ident_str.to_string()),
                     value: ident_str.to_string(),
                 };
 
@@ -80,7 +88,7 @@ impl Parser {
                     self.next_token();
                 }
 
-                let stmt = Statement::LetStatement(tok, ident, Expression {});
+                let stmt = Statement::LetStatement(let_tok, ident, Expression {});
                 return Some(stmt);
             }
         }
@@ -96,6 +104,14 @@ impl Parser {
             return Some(stmt);
         }
         return None;
+    }
+
+    fn register_prefix_fn(&mut self, tok: token::Token, prefix_fn: prefix_parse_fn) {
+        self.prefix_parse_fns.insert(tok, prefix_fn);
+    }
+
+    fn register_infix_fn(&mut self, tok: token::Token, infix_fn: infix_parse_fn) {
+        self.infix_parse_fns.insert(tok, infix_fn);
     }
 
     fn next_token(&mut self) {
