@@ -69,7 +69,7 @@ impl Parser {
     }
 
     fn parse_let_statement(&mut self) -> Option<Statement> {
-        if let Some(let_tok) = self.curr_token.clone() {
+        if let Some(let_tok) = self.curr_token.take() {
             if !self.expect_peek(&token::Token::Ident("???".to_string())) {
                 return None;
             }
@@ -96,7 +96,7 @@ impl Parser {
     }
 
     fn parse_return_statement(&mut self) -> Option<Statement> {
-        if let Some(tok) = self.curr_token.clone() {
+        if let Some(tok) = self.curr_token.take() {
             while !self.is_curr_token(&token::Token::Semicolon) {
                 self.next_token();
             }
@@ -115,7 +115,7 @@ impl Parser {
     }
 
     fn next_token(&mut self) {
-        self.curr_token = self.peek_token.clone();
+        self.curr_token = self.peek_token.take();
         if let Ok(token) = self.lex.next_token() {
             self.peek_token = Some(token);
         }

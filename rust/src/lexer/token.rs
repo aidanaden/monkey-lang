@@ -46,10 +46,9 @@ pub enum Token {
 
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let v = self.clone();
-        match v {
+        match self {
             Self::Ident(s) => write!(f, "Token(Ident, value: '{}')", s),
-            Self::Illegal(c) => write!(f, "Token(Illegal, value: {:?})", c as char),
+            Self::Illegal(c) => write!(f, "Token(Illegal, value: {:?})", *c as char),
             Self::Int(i) => write!(f, "Token(Int, value: '{}')", i),
             _ => write!(f, "Token({:?})", *self),
         }
