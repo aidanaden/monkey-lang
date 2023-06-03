@@ -1,6 +1,6 @@
 <div align="center">
 
-  <h1>Monkey-lang Interpreter</h1>
+  <h1>Monkey-lang Interpreter/Compiler</h1>
   <h5>Based on the awesome book "Writing An Interpreter In Go" by Thorsten Ball</h5>
 
 ![Work In Progress](https://img.shields.io/badge/Work%20In%20Progress-orange?style=for-the-badge)
