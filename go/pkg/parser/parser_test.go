@@ -17,7 +17,7 @@ func parseInput(t *testing.T, input string, numStmts int) *ast.Program {
 	if program == nil {
 		t.Fatalf("ParseProgram() returned nil")
 	}
-	if len(program.Statements) != numStmts {
+	if numStmts > 0 && len(program.Statements) != numStmts {
 		t.Fatalf("program.Statements does not contain %d statements, got=%d", numStmts, len(program.Statements))
 	}
 	return program
@@ -197,4 +197,149 @@ func testIntegerLiteral(t *testing.T, il ast.Expression, value int64) bool {
 		return false
 	}
 	return true
+}
+
+func testIdentifier(t *testing.T, expr ast.Expression, value string) bool {
+	ident, ok := expr.(*ast.Identifier)
+	if !ok {
+		t.Errorf("expression not *ast.Identifier, got=%T", expr)
+		return false
+	}
+
+	if ident.Value != value {
+		t.Errorf("ident.Value not '%s', got='%s'", value, ident.Value)
+		return false
+	}
+
+	if ident.TokenLiteral() != value {
+		t.Errorf("ident.TokenLiteral not '%s', got='%s'", value, ident.TokenLiteral())
+		return false
+	}
+
+	return true
+}
+
+func testLiteralExpression(t *testing.T, expr ast.Expression, expected interface{}) bool {
+	switch v := expected.(type) {
+	case int:
+		return testIntegerLiteral(t, expr, int64(v))
+	case int64:
+		return testIntegerLiteral(t, expr, v)
+	case string:
+		return testIdentifier(t, expr, v)
+	}
+	t.Errorf("invalid expr type, got=%T", expr)
+	return false
+}
+
+func testInfixExpression(t *testing.T, expr ast.Expression, left interface{}, operator string, right interface{}) bool {
+	infixExpr, ok := expr.(*ast.InfixExpression)
+	if !ok {
+		t.Errorf("expr is not ast.InfixExpression, got=%T(%s)", expr, expr)
+		return false
+	}
+	if !testLiteralExpression(t, infixExpr.Left, left) {
+		return false
+	}
+	if infixExpr.Operator != operator {
+		t.Errorf("expr.Operator is not '%s', got=%q", operator, infixExpr.Operator)
+		return false
+	}
+	if !testLiteralExpression(t, infixExpr.Right, right) {
+		return false
+	}
+	return true
+}
+
+func TestParsingInfixExpressions(t *testing.T) {
+	infixTests := []struct {
+		input      string
+		leftValue  int64
+		operator   string
+		rightValue int64
+	}{
+		{"5 + 5;", 5, "+", 5},
+		{"5 - 5;", 5, "-", 5},
+		{"5 * 5;", 5, "*", 5},
+		{"5 / 5;", 5, "/", 5},
+		{"5 > 5;", 5, ">", 5},
+		{"5 < 5;", 5, "<", 5},
+		{"5 == 5;", 5, "==", 5},
+		{"5 != 5;", 5, "!=", 5},
+	}
+
+	for _, tt := range infixTests {
+		program := parseInput(t, tt.input, 1)
+		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("program.Statements[0] is not ast.ExpressionStatement, got=%T", program.Statements[0])
+		}
+		if !testInfixExpression(t, stmt.Expression, tt.leftValue, tt.operator, tt.rightValue) {
+			return
+		}
+	}
+}
+
+func TestOperatorPrecedenceParsing(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{
+			input:    "-a * b",
+			expected: "((-a) * b)",
+		},
+		{
+			input:    "!-a",
+			expected: "(!(-a))",
+		},
+		{
+			input:    "a + b + c",
+			expected: "((a + b) + c)",
+		},
+		{
+			input:    "a + b - c",
+			expected: "((a + b) - c)",
+		},
+		{
+			input:    "a * b * c",
+			expected: "((a * b) * c)",
+		},
+		{
+			input:    "a * b / c",
+			expected: "((a * b) / c)",
+		},
+		{
+			input:    "a + b / c",
+			expected: "(a + (b / c))",
+		},
+		{
+			input:    "a + b * c + d / e - f",
+			expected: "(((a + (b * c)) + (d / e)) - f)",
+		},
+		{
+			input:    "3 + 4; -5 * 5",
+			expected: "(3 + 4)((-5) * 5)",
+		},
+		{
+			input:    "5 > 4 == 3 < 4",
+			expected: "((5 > 4) == (3 < 4))",
+		},
+		{
+			input:    "5 < 4 != 3 > 4",
+			expected: "((5 < 4) != (3 > 4))",
+		},
+		{
+			input:    "3 + 4 * 5 == 3 * 1 + 4 * 5",
+			expected: "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+		},
+	}
+
+	for _, tt := range tests {
+		program := parseInput(t, tt.input, 0)
+		actual := program.String()
+		if actual != tt.expected {
+			t.Errorf("expected=%q but got=%q", tt.expected, actual)
+		}
+	}
 }

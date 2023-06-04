@@ -5,7 +5,7 @@ use crate::lexer::{
     token::{self},
 };
 
-use super::ast::{Expression, Identifier, Program, Statement};
+use super::ast::{Expression, Identifier, LetStatement, Program, ReturnStatement, Statement};
 
 type prefix_parse_fn = fn() -> Expression;
 type infix_parse_fn = fn(Expression) -> Expression;
@@ -88,7 +88,11 @@ impl Parser {
                     self.next_token();
                 }
 
-                let stmt = Statement::LetStatement(let_tok, ident, Expression {});
+                let stmt = Statement::LetStatement(LetStatement {
+                    let_token: let_tok,
+                    name: ident,
+                    expr: Expression {},
+                });
                 return Some(stmt);
             }
         }
@@ -100,7 +104,10 @@ impl Parser {
             while !self.is_curr_token(&token::Token::Semicolon) {
                 self.next_token();
             }
-            let stmt = Statement::ReturnStatement(tok, Expression {});
+            let stmt = Statement::ReturnStatement(ReturnStatement {
+                return_token: tok,
+                expr: Expression {},
+            });
             return Some(stmt);
         }
         return None;
@@ -169,7 +176,7 @@ mod test {
 
     use crate::{
         lexer::{lexer, token::Token},
-        parser::ast::{Node, Program, Statement},
+        parser::ast::{LetStatement, Node, Program, ReturnStatement, Statement},
     };
 
     use super::Parser;
@@ -236,13 +243,13 @@ let foobar = 838383;
                     stmt.token_literal().to_string()
                 );
                 match stmt {
-                    Statement::LetStatement(_, ident, _) => {
+                    Statement::LetStatement(LetStatement { name, .. }) => {
                         assert_eq!(
-                            test.to_string() == ident.token.to_string(),
+                            test.to_string() == name.token.to_string(),
                             true,
                             "invalid identifier found, expected {} but found {}",
                             test.to_string(),
-                            ident.value
+                            name.value
                         )
                     }
                     _ => continue,
@@ -262,10 +269,13 @@ return 993322;
 ";
         let program = parse_input(input, 3);
         for stmt in program.statements {
-            if let Statement::ReturnStatement(tok, _) = stmt {
-                match tok {
+            if let Statement::ReturnStatement(ReturnStatement { return_token, .. }) = stmt {
+                match return_token {
                     Token::Return => continue,
-                    _ => panic!("invalid token found, expected 'return' but found {}", tok),
+                    _ => panic!(
+                        "invalid token found, expected 'return' but found {}",
+                        return_token
+                    ),
                 }
             } else {
                 panic!(
