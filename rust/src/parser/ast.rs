@@ -7,28 +7,19 @@ pub struct Expression {}
 
 #[derive(Debug)]
 pub enum Statement {
-    LetStatement(LetStatement),
-    ReturnStatement(ReturnStatement),
-    ExpressionStatement(ExpressionStatement),
-}
-
-#[derive(Debug)]
-pub struct LetStatement {
-    pub let_token: token::Token, // token.LET token
-    pub name: Identifier,        // variable name
-    pub expr: Expression,        // variable value/expression
-}
-
-#[derive(Debug)]
-pub struct ReturnStatement {
-    pub return_token: token::Token, // 'return' token
-    pub expr: Expression,           // returned expression
-}
-
-#[derive(Debug)]
-pub struct ExpressionStatement {
-    pub first_token: token::Token, // first token of expression
-    pub expr: Expression,          // expression
+    LetStatement {
+        let_token: token::Token, // token.LET token
+        name: Identifier,        // variable name
+        expr: Expression,        // variable value/expression
+    },
+    ReturnStatement {
+        return_token: token::Token, // 'return' token
+        expr: Expression,           // returned expression
+    },
+    ExpressionStatement {
+        first_token: token::Token, // first token of expression
+        expr: Expression,          // expression
+    },
 }
 
 pub trait Node {
@@ -38,9 +29,9 @@ pub trait Node {
 impl Node for Statement {
     fn token_literal(&self) -> String {
         match self {
-            Self::LetStatement(let_stmt) => let_stmt.let_token.to_string(),
-            Self::ReturnStatement(return_stmt) => return_stmt.return_token.to_string(),
-            Self::ExpressionStatement(expr_stmt) => expr_stmt.first_token.to_string(),
+            Self::LetStatement { let_token, .. } => let_token.to_string(),
+            Self::ReturnStatement { return_token, .. } => return_token.to_string(),
+            Self::ExpressionStatement { first_token, .. } => first_token.to_string(),
         }
     }
 }
@@ -48,18 +39,18 @@ impl Node for Statement {
 impl Display for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::LetStatement(let_stmt) => {
-                writeln!(
-                    f,
-                    "{} {} = {:?}",
-                    let_stmt.let_token, let_stmt.name.value, let_stmt.expr
-                )
+            Self::LetStatement {
+                let_token,
+                name,
+                expr,
+            } => {
+                writeln!(f, "{} {} = {:?}", let_token, name.value, expr)
             }
-            Self::ReturnStatement(return_stmt) => {
-                writeln!(f, "{} {:?}", return_stmt.return_token, return_stmt.expr)
+            Self::ReturnStatement { return_token, expr } => {
+                writeln!(f, "{} {:?}", return_token, expr)
             }
-            Self::ExpressionStatement(expr_stmt) => {
-                writeln!(f, "{:?}", expr_stmt.expr)
+            Self::ExpressionStatement { expr, .. } => {
+                writeln!(f, "{:?}", expr)
             }
         }
     }

@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use crate::lexer::{
     lexer,
-    token::{self},
+    token::{self, Precedence, PrecedencePriority},
 };
 
-use super::ast::{Expression, Identifier, LetStatement, Program, ReturnStatement, Statement};
+use super::ast::{Expression, Identifier, Program, Statement};
 
 type prefix_parse_fn = fn() -> Expression;
 type infix_parse_fn = fn(Expression) -> Expression;
@@ -88,11 +88,11 @@ impl Parser {
                     self.next_token();
                 }
 
-                let stmt = Statement::LetStatement(LetStatement {
+                let stmt = Statement::LetStatement {
                     let_token: let_tok,
                     name: ident,
                     expr: Expression {},
-                });
+                };
                 return Some(stmt);
             }
         }
@@ -104,13 +104,55 @@ impl Parser {
             while !self.is_curr_token(&token::Token::Semicolon) {
                 self.next_token();
             }
-            let stmt = Statement::ReturnStatement(ReturnStatement {
+            let stmt = Statement::ReturnStatement {
                 return_token: tok,
                 expr: Expression {},
-            });
+            };
             return Some(stmt);
         }
         return None;
+    }
+
+    fn parse_expression_statement(&mut self) -> Option<Statement> {
+        let tok = self.curr_token.clone()?;
+        let expr = self.parse_expression(PrecedencePriority::Lowest)?;
+        let stmt = Statement::ExpressionStatement {
+            first_token: tok,
+            expr: expr,
+        };
+        return Some(stmt);
+    }
+
+    fn parse_expression(&mut self, precedence: PrecedencePriority) -> Option<Expression> {
+        let tok = self.curr_token.take()?;
+        let prefix_parse_fn = self.prefix_parse_fns.get(&tok)?;
+        let mut left_expr = prefix_parse_fn();
+        while self.is_peek_token(&token::Token::Semicolon)
+            && precedence < self.peek_token_precedence()
+        {
+            // cannot use .take() since self.peek_token needed in self.next_token()
+            if let Some(peek_tok) = self.peek_token.clone() {
+                if let Some(infix_parse_fn) = self.infix_parse_fns.get(&peek_tok).copied() {
+                    self.next_token();
+                    left_expr = infix_parse_fn(left_expr);
+                }
+            }
+        }
+        return Some(left_expr);
+    }
+
+    fn curr_token_precedence(&self) -> PrecedencePriority {
+        if let Some(tok) = &self.curr_token {
+            return tok.precedence();
+        }
+        return PrecedencePriority::Lowest;
+    }
+
+    fn peek_token_precedence(&self) -> PrecedencePriority {
+        if let Some(tok) = &self.peek_token {
+            return tok.precedence();
+        }
+        return PrecedencePriority::Lowest;
     }
 
     fn register_prefix_fn(&mut self, tok: token::Token, prefix_fn: prefix_parse_fn) {
@@ -176,7 +218,7 @@ mod test {
 
     use crate::{
         lexer::{lexer, token::Token},
-        parser::ast::{LetStatement, Node, Program, ReturnStatement, Statement},
+        parser::ast::{Node, Program, Statement},
     };
 
     use super::Parser;
@@ -243,7 +285,7 @@ let foobar = 838383;
                     stmt.token_literal().to_string()
                 );
                 match stmt {
-                    Statement::LetStatement(LetStatement { name, .. }) => {
+                    Statement::LetStatement { name, .. } => {
                         assert_eq!(
                             test.to_string() == name.token.to_string(),
                             true,
@@ -269,7 +311,7 @@ return 993322;
 ";
         let program = parse_input(input, 3);
         for stmt in program.statements {
-            if let Statement::ReturnStatement(ReturnStatement { return_token, .. }) = stmt {
+            if let Statement::ReturnStatement { return_token, .. } = stmt {
                 match return_token {
                     Token::Return => continue,
                     _ => panic!(

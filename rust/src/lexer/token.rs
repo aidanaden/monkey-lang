@@ -47,10 +47,41 @@ pub enum Token {
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Ident(s) => write!(f, "Token(Ident, value: '{}')", s),
-            Self::Illegal(c) => write!(f, "Token(Illegal, value: {:?})", *c as char),
-            Self::Int(i) => write!(f, "Token(Int, value: '{}')", i),
+            Self::Ident(s) => write!(f, "Token(Ident, '{}')", s),
+            Self::Illegal(c) => write!(f, "Token(Illegal, {:?})", *c as char),
+            Self::Int(i) => write!(f, "Token(Int, '{}')", i),
             _ => write!(f, "Token({:?})", *self),
+        }
+    }
+}
+
+#[derive(PartialEq, PartialOrd)]
+pub enum PrecedencePriority {
+    Lowest = 0,
+    Equals = 1,
+    LessOrGreater = 2,
+    Sum = 3,
+    Product = 4,
+    Prefix = 5,
+    Call = 6,
+}
+
+pub trait Precedence {
+    fn precedence(&self) -> PrecedencePriority;
+}
+
+impl Precedence for Token {
+    fn precedence(&self) -> PrecedencePriority {
+        match self {
+            Self::Eq => PrecedencePriority::Equals,
+            Self::Ne => PrecedencePriority::Equals,
+            Self::Lt => PrecedencePriority::LessOrGreater,
+            Self::Gt => PrecedencePriority::LessOrGreater,
+            Self::Plus => PrecedencePriority::Sum,
+            Self::Minus => PrecedencePriority::Sum,
+            Self::Slash => PrecedencePriority::Product,
+            Self::Asterisk => PrecedencePriority::Product,
+            _ => PrecedencePriority::Lowest,
         }
     }
 }
