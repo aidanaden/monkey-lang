@@ -47,15 +47,14 @@ pub enum Token {
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Ident(s) => write!(f, "Token(Ident, '{}')", s),
-            Self::Illegal(c) => write!(f, "Token(Illegal, {:?})", *c as char),
-            Self::Int(i) => write!(f, "Token(Int, '{}')", i),
-            _ => write!(f, "Token({:?})", *self),
+            Self::Ident(ident_str) => write!(f, "{}", ident_str),
+            Self::Int(int_str) => write!(f, "{}", int_str),
+            _ => write!(f, "{:?}", *self),
         }
     }
 }
 
-#[derive(PartialEq, PartialOrd)]
+#[derive(PartialEq, PartialOrd, Debug, Ord, Eq)]
 pub enum PrecedencePriority {
     Lowest = 0,
     Equals = 1,

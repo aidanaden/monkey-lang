@@ -3,9 +3,6 @@ use std::fmt::Display;
 use crate::lexer::token;
 
 #[derive(Debug)]
-pub struct Expression {}
-
-#[derive(Debug)]
 pub enum Statement {
     LetStatement {
         let_token: token::Token, // token.LET token
@@ -20,6 +17,30 @@ pub enum Statement {
         first_token: token::Token, // first token of expression
         expr: Expression,          // expression
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum Expression {
+    Identifier {
+        token: token::Token,
+        value: String,
+    },
+    IntegerLiteral {
+        token: token::Token, // the prefix token, e.g. !, -
+        value: i32,
+    },
+    PrefixExpression {
+        token: token::Token, // the prefix token, e.g. !, -
+        operator: String,
+        right: Box<Expression>,
+    },
+    InfixExpression {
+        token: token::Token, // the operator token, e.g. +, -, *, /
+        left: Box<Expression>,
+        operator: String,
+        right: Box<Expression>,
+    },
+    Test {},
 }
 
 pub trait Node {
