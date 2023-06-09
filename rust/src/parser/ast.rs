@@ -43,6 +43,31 @@ pub enum Expression {
     Test {},
 }
 
+impl Display for Expression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expression::Identifier { value, .. } => write!(f, "{}", *value),
+            Expression::IntegerLiteral { value, .. } => write!(f, "{}", value.to_string()),
+            Expression::InfixExpression {
+                left,
+                operator,
+                right,
+                ..
+            } => write!(
+                f,
+                "({} {} {})",
+                left.to_string(),
+                operator,
+                right.to_string()
+            ),
+            Expression::PrefixExpression {
+                operator, right, ..
+            } => write!(f, "({}{})", operator, right.to_string()),
+            Expression::Test {} => writeln!(f, ""),
+        }
+    }
+}
+
 pub trait Node {
     fn token_literal(&self) -> String;
 }
@@ -65,13 +90,13 @@ impl Display for Statement {
                 name,
                 expr,
             } => {
-                writeln!(f, "{} {} = {:?}", let_token, name.value, expr)
+                write!(f, "{} {} = {:?}", let_token, name.value, expr)
             }
             Self::ReturnStatement { return_token, expr } => {
-                writeln!(f, "{} {:?}", return_token, expr)
+                write!(f, "{} {:?}", return_token, expr)
             }
             Self::ExpressionStatement { expr, .. } => {
-                writeln!(f, "{:?}", expr)
+                write!(f, "{}", expr)
             }
         }
     }
@@ -104,7 +129,7 @@ impl Display for Program {
                 return format!("{}", stmt);
             })
             .collect::<Vec<_>>();
-        return writeln!(f, "{}", display.join("\n"));
+        return write!(f, "{}", display.join(""));
     }
 }
 

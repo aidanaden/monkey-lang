@@ -34,7 +34,6 @@ impl Parser {
                     break;
                 }
                 if let Some(stmt) = self.parse_statement() {
-                    println!("found stmt: {:?}", stmt);
                     program.statements.push(stmt);
                 }
                 self.next_token();
@@ -176,6 +175,29 @@ impl Parser {
         return None;
     }
 
+    // func (p *Parser) parsePrefixExpression() ast.Expression {
+    //     expression := &ast.PrefixExpression{
+    //         Token:    p.currToken,
+    //         Operator: p.currToken.Literal,
+    //     }
+    //     p.nextToken()
+
+    //     expression.Right = p.parseExpression(PREFIX)
+    //     return expression
+    // }
+
+    // func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
+    //     expression := &ast.InfixExpression{
+    //         Token:    p.currToken,
+    //         Operator: p.currToken.Literal,
+    //         Left:     left,
+    //     }
+    //     precedence := p.getCurrTokenPrecedence()
+    //     p.nextToken()
+    //     expression.Right = p.parseExpression(precedence)
+    //     return expression
+    // }
+
     fn parse_prefix_expression(&mut self) -> Option<Expression> {
         if let Some(tok) = self.curr_token.take() {
             self.next_token();
@@ -190,7 +212,7 @@ impl Parser {
     }
 
     fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {
-        if let Some(tok) = self.curr_token.take() {
+        if let Some(tok) = self.curr_token.clone() {
             let precedence = self.curr_token_precedence();
             self.next_token();
             let right_expr = self.parse_expression(precedence)?;
@@ -286,13 +308,15 @@ mod test {
         let mut parser = Parser::new(lex);
         check_parser_errors(&parser);
         let program = parser.parse_program();
-        assert_eq!(
-            program.statements.len(),
-            num_stmts,
-            "Expected program to have {} statements, received {}",
-            num_stmts,
-            program.statements.len()
-        );
+        if num_stmts > 0 {
+            assert_eq!(
+                program.statements.len(),
+                num_stmts,
+                "Expected program to have {} statements, received {}",
+                num_stmts,
+                program.statements.len()
+            );
+        }
         return program;
     }
 
@@ -664,67 +688,73 @@ return 993322;
         }
     }
 
-    // func TestOperatorPrecedenceParsing(t *testing.T) {
-    //     tests := []struct {
-    //         input    string
-    //         expected string
-    //     }{
-    //         {
-    //             input:    "-a * b",
-    //             expected: "((-a) * b)",
-    //         },
-    //         {
-    //             input:    "!-a",
-    //             expected: "(!(-a))",
-    //         },
-    //         {
-    //             input:    "a + b + c",
-    //             expected: "((a + b) + c)",
-    //         },
-    //         {
-    //             input:    "a + b - c",
-    //             expected: "((a + b) - c)",
-    //         },
-    //         {
-    //             input:    "a * b * c",
-    //             expected: "((a * b) * c)",
-    //         },
-    //         {
-    //             input:    "a * b / c",
-    //             expected: "((a * b) / c)",
-    //         },
-    //         {
-    //             input:    "a + b / c",
-    //             expected: "(a + (b / c))",
-    //         },
-    //         {
-    //             input:    "a + b * c + d / e - f",
-    //             expected: "(((a + (b * c)) + (d / e)) - f)",
-    //         },
-    //         {
-    //             input:    "3 + 4; -5 * 5",
-    //             expected: "(3 + 4)((-5) * 5)",
-    //         },
-    //         {
-    //             input:    "5 > 4 == 3 < 4",
-    //             expected: "((5 > 4) == (3 < 4))",
-    //         },
-    //         {
-    //             input:    "5 < 4 != 3 > 4",
-    //             expected: "((5 < 4) != (3 > 4))",
-    //         },
-    //         {
-    //             input:    "3 + 4 * 5 == 3 * 1 + 4 * 5",
-    //             expected: "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
-    //         },
-    //     }
+    #[test]
+    fn test_operator_precedence_parsing() {
+        struct TestData {
+            input: String,
+            expected: String,
+        }
 
-    //     for _, tt := range tests {
-    //         program := parseInput(t, tt.input, 0)
-    //         actual := program.String()
-    //         if actual != tt.expected {
-    //             t.Errorf("expected=%q but got=%q", tt.expected, actual)
-    //         }
-    //     }
-    // }
+        let tests = vec![
+            TestData {
+                input: String::from("-a * b"),
+                expected: String::from("((-a) * b)"),
+            },
+            TestData {
+                input: String::from("!-a"),
+                expected: String::from("(!(-a))"),
+            },
+            TestData {
+                input: String::from("a + b + c"),
+                expected: String::from("((a + b) + c)"),
+            },
+            TestData {
+                input: String::from("a + b - c"),
+                expected: String::from("((a + b) - c)"),
+            },
+            TestData {
+                input: String::from("a * b * c"),
+                expected: String::from("((a * b) * c)"),
+            },
+            TestData {
+                input: String::from("a * b / c"),
+                expected: String::from("((a * b) / c)"),
+            },
+            TestData {
+                input: String::from("a + b / c"),
+                expected: String::from("(a + (b / c))"),
+            },
+            TestData {
+                input: String::from("a + b * c + d / e - f"),
+                expected: String::from("(((a + (b * c)) + (d / e)) - f)"),
+            },
+            TestData {
+                input: String::from("3 + 4; -5 * 5"),
+                expected: String::from("(3 + 4)((-5) * 5)"),
+            },
+            TestData {
+                input: String::from("5 > 4 == 3 < 4"),
+                expected: String::from("((5 > 4) == (3 < 4))"),
+            },
+            TestData {
+                input: String::from("5 < 4 != 3 > 4"),
+                expected: String::from("((5 < 4) != (3 > 4))"),
+            },
+            TestData {
+                input: String::from("3 + 4 * 5 == 3 * 1 + 4 * 5"),
+                expected: String::from("((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"),
+            },
+        ];
+
+        for test in tests {
+            let program = parse_input(&test.input, 0);
+            let output = program.to_string();
+            if output != test.expected {
+                panic!(
+                    "invalid output, got {} but expected {}",
+                    output, test.expected
+                );
+            }
+        }
+    }
 }
