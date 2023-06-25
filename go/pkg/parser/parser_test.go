@@ -153,14 +153,36 @@ func TestIntegerLiteralExpression(t *testing.T) {
 	}
 }
 
+func TestBooleanExpression(t *testing.T) {
+	input := "true;"
+
+	program := parseInput(t, input, 1)
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not ast.ExpressionStatement, got=%q", program.Statements[0])
+	}
+	literal, ok := stmt.Expression.(*ast.Boolean)
+	if !ok {
+		t.Errorf("expression expected to be *ast.Boolean, got=%T", stmt.Expression)
+	}
+	if literal.Value != true {
+		t.Errorf("literal.Value expected to be %v, got=%v", 5, literal.Value)
+	}
+	if literal.TokenLiteral() != "true" {
+		t.Errorf("literal.TokenLiteral expected to be %s, got=%s", "true", literal.TokenLiteral())
+	}
+}
+
 func TestParsingPrefixExpressions(t *testing.T) {
 	prefixTests := []struct {
-		input        string
-		operator     string
-		integerValue int64
+		input    string
+		operator string
+		value    interface{}
 	}{
-		{input: "!5;", operator: "!", integerValue: 5},
-		{input: "-15;", operator: "-", integerValue: 15},
+		{input: "!5;", operator: "!", value: 5},
+		{input: "-15;", operator: "-", value: 15},
+		{input: "!true;", operator: "!", value: true},
+		{input: "!false;", operator: "!", value: false},
 	}
 
 	for _, tt := range prefixTests {
@@ -176,7 +198,7 @@ func TestParsingPrefixExpressions(t *testing.T) {
 		if expr.Operator != tt.operator {
 			t.Fatalf("expr.Operation is not '%s', got=%s", tt.operator, expr.Operator)
 		}
-		if !testIntegerLiteral(t, expr.Right, tt.integerValue) {
+		if !testLiteralExpression(t, expr.Right, tt.value) {
 			return
 		}
 	}
@@ -219,6 +241,23 @@ func testIdentifier(t *testing.T, expr ast.Expression, value string) bool {
 	return true
 }
 
+func testBooleanLiteral(t *testing.T, expr ast.Expression, value bool) bool {
+	bo, ok := expr.(*ast.Boolean)
+	if !ok {
+		t.Errorf("expr not *ast.Boolean, got=%T", bo)
+		return false
+	}
+	if bo.Value != value {
+		t.Errorf("bool.Value is not %v, got=%v", value, bo.Value)
+		return false
+	}
+	if bo.TokenLiteral() != fmt.Sprintf("%v", value) {
+		t.Errorf("bool.TokenLiteral not %v, got=%v", value, bo.Value)
+		return false
+	}
+	return true
+}
+
 func testLiteralExpression(t *testing.T, expr ast.Expression, expected interface{}) bool {
 	switch v := expected.(type) {
 	case int:
@@ -227,6 +266,8 @@ func testLiteralExpression(t *testing.T, expr ast.Expression, expected interface
 		return testIntegerLiteral(t, expr, v)
 	case string:
 		return testIdentifier(t, expr, v)
+	case bool:
+		return testBooleanLiteral(t, expr, v)
 	}
 	t.Errorf("invalid expr type, got=%T", expr)
 	return false
@@ -254,9 +295,9 @@ func testInfixExpression(t *testing.T, expr ast.Expression, left interface{}, op
 func TestParsingInfixExpressions(t *testing.T) {
 	infixTests := []struct {
 		input      string
-		leftValue  int64
+		leftValue  interface{}
 		operator   string
-		rightValue int64
+		rightValue interface{}
 	}{
 		{"5 + 5;", 5, "+", 5},
 		{"5 - 5;", 5, "-", 5},
@@ -266,6 +307,9 @@ func TestParsingInfixExpressions(t *testing.T) {
 		{"5 < 5;", 5, "<", 5},
 		{"5 == 5;", 5, "==", 5},
 		{"5 != 5;", 5, "!=", 5},
+		{"true == true", true, "==", true},
+		{"true != false", true, "!=", false},
+		{"false == false", false, "==", false},
 	}
 
 	for _, tt := range infixTests {
@@ -332,6 +376,42 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 		{
 			input:    "3 + 4 * 5 == 3 * 1 + 4 * 5",
 			expected: "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+		},
+		{
+			input:    "true",
+			expected: "true",
+		},
+		{
+			input:    "false",
+			expected: "false",
+		},
+		{
+			input:    "3 > 5 == false",
+			expected: "((3 > 5) == false)",
+		},
+		{
+			input:    "3 < 5 == true",
+			expected: "((3 < 5) == true)",
+		},
+		{
+			input:    "1 + (2 + 3) + 4",
+			expected: "((1 + (2 + 3)) + 4)",
+		},
+		{
+			input:    "(5 + 5) * 2",
+			expected: "((5 + 5) * 2)",
+		},
+		{
+			input:    "2 / (5 + 5)",
+			expected: "(2 / (5 + 5))",
+		},
+		{
+			input:    "-(5 + 5)",
+			expected: "(-(5 + 5))",
+		},
+		{
+			input:    "!(true == true)",
+			expected: "(!(true == true))",
 		},
 	}
 
