@@ -126,9 +126,11 @@ impl Parser {
 
     fn parse_prefix_fn(&mut self, tok: &token::Token) -> Option<Expression> {
         match tok {
-            token::Token::Ident(_) => self.parse_identifier(),
-            token::Token::Int(_) => self.parse_integer_literal(),
-            token::Token::Bang | token::Token::Minus => self.parse_prefix_expression(),
+            token::Token::Ident(_) => self.parse_identifier_expr(),
+            token::Token::Int(_) => self.parse_integer_literal_expr(),
+            token::Token::Bang | token::Token::Minus => self.parse_prefix_expr(),
+            token::Token::True | token::Token::False => self.parse_bool_expr(),
+            token::Token::LParen => self.parse_grouped_expr(),
             _ => None,
         }
     }
@@ -145,10 +147,10 @@ impl Parser {
             | token::Token::Gt => self.next_token(),
             _ => return None,
         }
-        return self.parse_infix_expression(left);
+        return self.parse_infix_expr(left);
     }
 
-    fn parse_identifier(&mut self) -> Option<Expression> {
+    fn parse_identifier_expr(&mut self) -> Option<Expression> {
         let curr = self.curr_token.take()?;
         return Some(Expression::Identifier {
             value: curr.to_string(),
@@ -156,7 +158,7 @@ impl Parser {
         });
     }
 
-    fn parse_integer_literal(&self) -> Option<Expression> {
+    fn parse_integer_literal_expr(&self) -> Option<Expression> {
         if let Some(token::Token::Int(int_value)) = &self.curr_token {
             if let Ok(value) = int_value.parse::<i32>() {
                 return Some(Expression::IntegerLiteral {
@@ -168,23 +170,45 @@ impl Parser {
         return None;
     }
 
-    fn parse_prefix_expression(&mut self) -> Option<Expression> {
+    fn parse_bool_expr(&mut self) -> Option<Expression> {
+        let tok = self.curr_token.take()?;
+        match tok {
+            token::Token::True | token::Token::False => {
+                return Some(Expression::Boolean {
+                    value: tok == token::Token::True,
+                    token: tok,
+                })
+            }
+            _ => return None,
+        }
+    }
+
+    fn parse_grouped_expr(&mut self) -> Option<Expression> {
+        self.next_token();
+        let expr = self.parse_expression(PrecedencePriority::Lowest);
+        if self.expect_peek(&token::Token::RParen) {
+            return expr;
+        }
+        return None;
+    }
+
+    fn parse_prefix_expr(&mut self) -> Option<Expression> {
         let tok = self.curr_token.take()?;
         self.next_token();
         let right_expr = self.parse_expression(PrecedencePriority::Prefix)?;
-        return Some(Expression::PrefixExpression {
+        return Some(Expression::Prefix {
             operator: tok.to_string(),
             token: tok,
             right: Box::new(right_expr),
         });
     }
 
-    fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {
+    fn parse_infix_expr(&mut self, left: Expression) -> Option<Expression> {
         let tok = self.curr_token.clone()?;
         let precedence = self.curr_token_precedence();
         self.next_token();
         let right_expr = self.parse_expression(precedence)?;
-        return Some(Expression::InfixExpression {
+        return Some(Expression::Infix {
             operator: tok.to_string(),
             token: tok,
             left: Box::new(left),
@@ -448,6 +472,37 @@ return 993322;
     }
 
     #[test]
+    fn test_boolean_expression() -> Result<()> {
+        let input = "true;";
+        let program = parse_input(input, 1);
+        for stmt in program.statements {
+            if let Statement::ExpressionStatement {
+                expr: Expression::Boolean { token, value },
+                ..
+            } = stmt
+            {
+                assert_eq!(
+                    value == true,
+                    true,
+                    "invalid boolean value found, expected {} but found {}",
+                    true,
+                    value
+                );
+                assert_eq!(
+                    token.to_string() == "true",
+                    true,
+                    "invalid token literal value found, expected {} but found {}",
+                    "true",
+                    token.to_string()
+                )
+            } else {
+                panic!("failed to parse BooleanExpression stmt!")
+            }
+        }
+        return Ok(());
+    }
+
+    #[test]
     fn test_parsing_prefix_expressions() {
         struct TestData<'a> {
             input: &'a str,
@@ -472,7 +527,7 @@ return 993322;
             for stmt in program.statements {
                 if let Statement::ExpressionStatement {
                     expr:
-                        Expression::PrefixExpression {
+                        Expression::Prefix {
                             operator, right, ..
                         },
                     ..
@@ -540,15 +595,41 @@ return 993322;
         }
     }
 
+    fn test_boolean(expr: &Expression, value: &bool) {
+        if let Expression::Boolean {
+            token,
+            value: bool_value,
+        } = expr
+        {
+            if value != bool_value {
+                panic!(
+                    "BooleanExpression value {} does not match expected {}",
+                    bool_value, value
+                );
+            }
+            if token.to_string() != value.to_string() {
+                panic!(
+                    "BooleanExpression token string value {} does not match expected string {}",
+                    token.to_string(),
+                    bool_value.to_string()
+                );
+            }
+        } else {
+            panic!("failed to parse BooleanExpression");
+        }
+    }
+
     enum ExpectedValue {
         Int(i32),
         String(String),
+        Boolean(bool),
     }
 
     fn test_literal_expression(expr: &Expression, expected: ExpectedValue) {
         match expected {
             ExpectedValue::Int(expected_int) => test_integer_literal(expr, expected_int),
             ExpectedValue::String(expected_str) => test_identifier(expr, &expected_str),
+            ExpectedValue::Boolean(expected_bool) => test_boolean(expr, &expected_bool),
         }
     }
 
@@ -558,7 +639,7 @@ return 993322;
         operator: &token::Token,
         right: ExpectedValue,
     ) {
-        if let Expression::InfixExpression {
+        if let Expression::Infix {
             left: infix_left,
             operator: infix_operator,
             right: infix_right,
@@ -580,60 +661,89 @@ return 993322;
 
     #[test]
     fn test_parsing_infix_expressions() {
+        #[derive(Debug, Copy, Clone)]
+        enum TestValue {
+            Int(i32),
+            Bool(bool),
+        }
         struct TestData<'a> {
             input: &'a str,
-            left_value: i32,
+            left_value: TestValue,
             operator: token::Token,
-            right_value: i32,
+            right_value: TestValue,
         }
         let tests = vec![
             TestData {
                 input: "5 + 5;",
-                left_value: 5,
+                left_value: TestValue::Int(5),
                 operator: token::Token::Plus,
-                right_value: 5,
+                right_value: TestValue::Int(5),
             },
             TestData {
                 input: "5 - 5;",
-                left_value: 5,
+                left_value: TestValue::Int(5),
                 operator: token::Token::Minus,
-                right_value: 5,
+                right_value: TestValue::Int(5),
             },
             TestData {
                 input: "5 * 5;",
-                left_value: 5,
+                left_value: TestValue::Int(5),
                 operator: token::Token::Asterisk,
-                right_value: 5,
+                right_value: TestValue::Int(5),
             },
             TestData {
                 input: "5 / 5;",
-                left_value: 5,
+                left_value: TestValue::Int(5),
                 operator: token::Token::Slash,
-                right_value: 5,
+                right_value: TestValue::Int(5),
             },
             TestData {
                 input: "5 > 5;",
-                left_value: 5,
+                left_value: TestValue::Int(5),
                 operator: token::Token::Gt,
-                right_value: 5,
+                right_value: TestValue::Int(5),
             },
             TestData {
                 input: "5 < 5;",
-                left_value: 5,
+                left_value: TestValue::Int(5),
                 operator: token::Token::Lt,
-                right_value: 5,
+                right_value: TestValue::Int(5),
             },
             TestData {
                 input: "5 == 5;",
-                left_value: 5,
+                left_value: TestValue::Int(5),
                 operator: token::Token::Eq,
-                right_value: 5,
+                right_value: TestValue::Int(5),
             },
             TestData {
                 input: "5 != 5;",
-                left_value: 5,
+                left_value: TestValue::Int(5),
                 operator: token::Token::Ne,
-                right_value: 5,
+                right_value: TestValue::Int(5),
+            },
+            TestData {
+                input: "true == true;",
+                left_value: TestValue::Bool(true),
+                operator: token::Token::Eq,
+                right_value: TestValue::Bool(true),
+            },
+            TestData {
+                input: "true == true;",
+                left_value: TestValue::Bool(true),
+                operator: token::Token::Eq,
+                right_value: TestValue::Bool(true),
+            },
+            TestData {
+                input: "true != false;",
+                left_value: TestValue::Bool(true),
+                operator: token::Token::Ne,
+                right_value: TestValue::Bool(false),
+            },
+            TestData {
+                input: "false == false;",
+                left_value: TestValue::Bool(false),
+                operator: token::Token::Eq,
+                right_value: TestValue::Bool(false),
             },
         ];
 
@@ -641,12 +751,26 @@ return 993322;
             let program = parse_input(test.input, 1);
             for stmt in program.statements {
                 if let Statement::ExpressionStatement { expr, .. } = stmt {
-                    test_infix_expression(
-                        &expr,
-                        ExpectedValue::Int(test.left_value),
-                        &test.operator,
-                        ExpectedValue::Int(test.right_value),
-                    )
+                    match (test.left_value, test.right_value) {
+                        // token::Token::True | token::Token::False =>
+                        (TestValue::Int(left_int), TestValue::Int(right_int)) => {
+                            test_infix_expression(
+                                &expr,
+                                ExpectedValue::Int(left_int),
+                                &test.operator,
+                                ExpectedValue::Int(right_int),
+                            )
+                        }
+                        (TestValue::Bool(left_bool), TestValue::Bool(right_bool)) => {
+                            test_infix_expression(
+                                &expr,
+                                ExpectedValue::Boolean(left_bool),
+                                &test.operator,
+                                ExpectedValue::Boolean(right_bool),
+                            )
+                        }
+                        _ => continue,
+                    }
                 } else {
                     panic!("failed to parse InfixExpressionStatement");
                 }
@@ -709,6 +833,42 @@ return 993322;
             TestData {
                 input: String::from("3 + 4 * 5 == 3 * 1 + 4 * 5"),
                 expected: String::from("((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"),
+            },
+            TestData {
+                input: String::from("true"),
+                expected: String::from("true"),
+            },
+            TestData {
+                input: String::from("false"),
+                expected: String::from("false"),
+            },
+            TestData {
+                input: String::from("3 > 5 == false"),
+                expected: String::from("((3 > 5) == false)"),
+            },
+            TestData {
+                input: String::from("3 < 5 == true"),
+                expected: String::from("((3 < 5) == true)"),
+            },
+            TestData {
+                input: String::from("1 + (2 + 3) + 4"),
+                expected: String::from("((1 + (2 + 3)) + 4)"),
+            },
+            TestData {
+                input: String::from("(5 + 5) * 2"),
+                expected: String::from("((5 + 5) * 2)"),
+            },
+            TestData {
+                input: String::from("2 / (5 + 5)"),
+                expected: String::from("(2 / (5 + 5))"),
+            },
+            TestData {
+                input: String::from("-(5 + 5)"),
+                expected: String::from("(-(5 + 5))"),
+            },
+            TestData {
+                input: String::from("!(true == true)"),
+                expected: String::from("(!(true == true))"),
             },
         ];
 

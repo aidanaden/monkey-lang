@@ -29,16 +29,20 @@ pub enum Expression {
         token: token::Token, // the prefix token, e.g. !, -
         value: i32,
     },
-    PrefixExpression {
+    Prefix {
         token: token::Token, // the prefix token, e.g. !, -
         operator: String,
         right: Box<Expression>,
     },
-    InfixExpression {
+    Infix {
         token: token::Token, // the operator token, e.g. +, -, *, /
         left: Box<Expression>,
         operator: String,
         right: Box<Expression>,
+    },
+    Boolean {
+        token: token::Token, // the token::TRUE or token::FALSE token
+        value: bool,
     },
     Test {},
 }
@@ -48,7 +52,7 @@ impl Display for Expression {
         match self {
             Expression::Identifier { value, .. } => write!(f, "{}", *value),
             Expression::IntegerLiteral { value, .. } => write!(f, "{}", value.to_string()),
-            Expression::InfixExpression {
+            Expression::Infix {
                 left,
                 operator,
                 right,
@@ -60,10 +64,11 @@ impl Display for Expression {
                 operator,
                 right.to_string()
             ),
-            Expression::PrefixExpression {
+            Expression::Prefix {
                 operator, right, ..
             } => write!(f, "({}{})", operator, right.to_string()),
-            Expression::Test {} => writeln!(f, ""),
+            Expression::Boolean { value, .. } => write!(f, "{}", value.to_string()),
+            Expression::Test {} => write!(f, "(test)"),
         }
     }
 }
